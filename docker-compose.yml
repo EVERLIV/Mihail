@@ -1,0 +1,455 @@
+# version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    command: mongod --port 27018 # --logpath /dev/null  # Указываем порт для MongoDB внутри контейнера
+    ports:
+      - "27018:27018"  # Mapping внешнего и внутреннего портов 27018
+    volumes:
+      - ./mongodb_data:/data/db
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "3"
+    restart: unless-stopped
+
+  cr_parser:
+    build:
+      context: ./cr_parser
+      dockerfile: Dockerfile
+    container_name: cr-parser
+    volumes:
+      - ./logs/cr_parser:/app/logs
+      - ./shared_data:/shared_data
+    env_file:
+      - .env
+      - ./cr_parser/.env
+    depends_on:
+      - mongodb
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+
+  mailparser:
+    build:
+      context: ./mailparser
+      dockerfile: Dockerfile
+    container_name: mail-parser
+    volumes:
+      - ./logs/mail_parser:/var/log
+      - ./shared_data:/shared_data
+    env_file:
+      - .env
+      - ./mailparser/.env
+    depends_on:
+      - mongodb
+      - api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  mailparser_sa:
+    build:
+      context: ./mailparser
+      dockerfile: Dockerfile
+    container_name: mail-parser_sa
+    volumes:
+      - ./logs/parser_sa:/var/log
+      - ./shared_data:/shared_data
+    env_file:
+      - .env
+      - ./mailparser/.env_sa
+    depends_on:
+      - mongodb
+      - api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  mailparser_2:
+    build:
+      context: ./mailparser
+      dockerfile: Dockerfile
+    container_name: mail-parser_2
+    volumes:
+      - ./logs/parser_2:/var/log
+      - ./shared_data:/shared_data
+    env_file:
+      - .env
+      - ./mailparser/.env_2
+    depends_on:
+      - mongodb
+      - api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+
+
+  stockmarket_parser:
+    build:
+      context: ./stockmarket_parser
+      dockerfile: Dockerfile
+    volumes:
+      - ./stockmarket_parser:/app
+      - stockmarket_browser_data:/app/stockmarket_browsercache
+      - ./screenshots:/app/screenshots
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+      - ./stockmarket_parser/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:  
+      resources:
+        reservations:
+          cpus: '0.5' 
+        limits:
+          cpus: '1.5' 
+    restart: unless-stopped
+
+  stockmarket_reverse:
+    build:
+      context: ./stockmarket_parser
+      dockerfile: Dockerfile
+    volumes:
+      - ./stockmarket_parser:/app
+      - stockmarket_browser_data1:/app/stockmarket_browsercache1
+      - ./screenshots:/app/screenshots
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+      - ./stockmarket_parser/.reverse.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:  
+      resources:
+        reservations:
+          cpus: '0.5' 
+        limits:
+          cpus: '1.5' 
+    restart: unless-stopped
+
+  ils_parser:
+    build:
+      context: ./ils_parser
+      dockerfile: Dockerfile
+    volumes:
+      - ./ils_parser:/app
+      - ils_browser_data:/app/ils_browsercache
+      - ./screenshots:/app/screenshots
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+      - ./ils_parser/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:  
+      resources:
+        reservations:
+          cpus: '0.5' 
+        limits:
+          cpus: '1.5' 
+    restart: unless-stopped
+
+  # rfq_extractor:
+  #   build:
+  #     context: ./rfq_extractor
+  #     dockerfile: Dockerfile
+  #   volumes:
+  #     - ./rfq_extractor:/app
+  #     - ./screenshots:/app/screenshots
+  #     - /app/node_modules
+  #     - ./shared_data:/shared_data
+  #   cap_add:
+  #     - SYS_ADMIN
+  #   env_file:
+  #     - .env
+  #     - ./rfq_extractor/.env
+  #   depends_on:
+  #     - mongodb
+  #   networks:
+  #     - app_network
+  #   deploy:  
+  #     resources:
+  #       reservations:
+  #         cpus: '0.5' 
+  #       limits:
+  #         cpus: '1.5' 
+
+  s7feeder:
+    build:
+      context: ./S7feeder
+      dockerfile: Dockerfile
+    volumes:
+      - ./S7feeder:/app
+      - ./s7_browsercache:/app/s7_browsercache
+      - ./screenshots:/app/screenshots
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+      - ./S7feeder/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:  
+      resources:
+        reservations:
+          cpus: '0.5' 
+        limits:
+          cpus: '1.0' 
+    restart: unless-stopped
+  proponent:
+    build:
+      context: ./proponent
+      dockerfile: Dockerfile
+    volumes:
+      - ./proponent:/app
+      - proponent_browser_data:/app/proponent_browsercache
+      - ./screenshots:/app/screenshots
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+      - ./proponent/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:  
+      resources:
+        reservations:
+          cpus: '0.5' 
+        limits:
+          cpus: '1.0' 
+    restart: unless-stopped
+
+  wencor:
+    build:
+      context: ./wencor
+      dockerfile: Dockerfile
+    volumes:
+      - ./wencor:/app
+      - wencor_browser_data:/app/wencor_browsercache
+      - ./screenshots:/app/screenshots
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+      - ./wencor/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:  
+      resources:
+        reservations:
+          cpus: '0.5' 
+        limits:
+          cpus: '1.0' 
+    restart: unless-stopped
+
+  partsbase:
+    build:
+      context: ./partsbase
+      dockerfile: Dockerfile
+    volumes:
+      - ./partsbase:/app
+      - pb_browser_data:/app/pb_browsercache
+      - ./screenshots:/app/screenshots
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    cap_add:
+      - SYS_ADMIN
+    env_file:
+      - .env
+      - ./partsbase/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:  
+      resources:
+        reservations:
+          cpus: '0.5' 
+        limits:
+          cpus: '1.5' 
+    restart: unless-stopped
+
+
+
+  reports_service:
+    build:
+      context: ./reports_service
+      dockerfile: Dockerfile
+    volumes:
+      - ./reports_service:/app
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    ports:
+      - "3010:3010"
+    env_file:
+      - .env
+      - ./reports_service/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+      - ./shared_data:/shared_data
+      - ./logs/api:/app/logs
+
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+      - ./api/.env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  utils:
+    build:
+      context: ./utils
+      dockerfile: Dockerfile
+    volumes:
+      - ./utils:/app
+      - /app/node_modules
+      - ./shared_data:/shared_data
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+volumes:
+  proponent_browser_data:
+  stockmarket_browser_data:
+  stockmarket_browser_data1:
+  wencor_browser_data:
+  ils_browser_data:
+  pb_browser_data:
+  mongodb_data:
+  shared_data:
+
+networks:
+  app_network:
+    driver: bridge

@@ -1,0 +1,18 @@
+server {
+    root /var/www/html/;
+    index index.html index.htm;
+
+    listen 80;
+    listen [::]:80;
+
+
+    server_name test.pantheon-mro.com; #87.249.54.145  
+
+    location ^~ /.well-known/acme-challenge/ {
+     root /var/www/html;
+     default_type "text/plain";
+     try_files $uri =404;
+    }
+
+    
+}
